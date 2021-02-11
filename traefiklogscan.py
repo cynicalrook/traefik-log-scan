@@ -6,30 +6,20 @@ import json
 import ipinfo
 from tinydb import TinyDB, Query
 
-ipinfo_token = 'c2f7ab93d0969a'
-handler = ipinfo.getHandler(ipinfo_token)
 db = TinyDB('traefik.db')
 
-def process_log(log_file, traefik_ip):
+def process_log(ipinfo_handler, log_file, traefik_ip):
     db.truncate()
     data = []
     i = 0
-    with open('traefik.json') as f:
+    with open(log_file) as f:
         for line in f:
             data.append(json.loads(line))
+        while i < len(data):
             if data[i]['ClientHost'] != traefik_ip:
-                details = handler.getDetails(data[i]['ClientHost'])
-                db.insert({'OriginIP': data[i]['ClientHost'], 'RequestHost': data[i]['RequestHost'], 'RequestPort': data[i]['RequestPort'], 'RequestMethod': data[i]['RequestMethod'], 'RequestPath': data[i]['RequestPath'], 
-                    'RequestProtocol': data[i]['RequestProtocol'], 'RequestScheme': data[i]['RequestScheme'], 'RouterName': data[i]['RouterName'], 'Time': [data[i]['time']], 'City': details.city, 'Country': details.country}) 
-
-
-
-
-
-
-#            details = handler.getDetails(data[i]['ClientHost'])
-#            db.insert(details.all)
-#            print(details.all)
+                details = ipinfo_handler.getDetails(data[i]['ClientHost'])
+                db.insert({'OriginIP': data[i]['ClientHost'], 'RequestMethod': data[i]['RequestMethod'], 'RequestPath': data[i]['RequestPath'], 'RequestProtocol': data[i]['RequestProtocol'], 
+                    'RequestScheme': data[i]['RequestScheme'], 'StatusCode': data[i]['DownstreamStatus'], 'Time': [data[i]['time']], 'City': details.city, 'Country': details.country}) 
             i = i + 1
 
 
@@ -54,12 +44,10 @@ def load_config(config_file, config_section):
 def main():
     config_file = 'config.ini'
     config_section = 'dev'
-#    log_file_name = load_config(config_file, config_section)
     log_file, traefik_ip, ipinfo_token = load_config(config_file, config_section)
+    ipinfo_handler = ipinfo.getHandler(ipinfo_token)
 
-#    print(log_file, traefik_ip)
-
-    process_log(log_file, traefik_ip)
+    process_log(ipinfo_handler, log_file, traefik_ip)
 
 
 if __name__ == '__main__':
