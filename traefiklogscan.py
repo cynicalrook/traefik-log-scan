@@ -1,5 +1,6 @@
 import os
 from os import path
+import shutil
 import configparser
 import requests
 import json
@@ -21,7 +22,9 @@ import pandas as pd
 #  Initialize database at startup  #
 #                                  #
 ####################################
-con = sl.connect('connections.db')
+db_name = 'connections.db'
+db_path = os.path.dirname(os.path.realpath(__file__)) + '/data/' + db_name
+con = sl.connect(db_path)
 cur = con.cursor()
 
 cur.execute("DROP TABLE IF EXISTS connections")
@@ -46,10 +49,14 @@ cur.execute("""CREATE TABLE connections (
 #####################################
 def load_config(config_file, config_section):
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    if os.path.isfile(dir_path + '/' + config_file):
+    config_path = dir_path + '/data/' + config_file
+    if os.path.isfile(config_path):
         config = configparser.ConfigParser()
-        config.read(config_file)
+        config.read(config_path)
         logfile = config.get(config_section, 'logfile')
+        if logfile == 'logfile path and name':
+            print('Please enter your settings in the config.ini located in the DATA directory.')
+            raise SystemExit
         traefik_ip = config.get(config_section, 'hostip')
         ip_token = config.get(config_section, 'ip2location token')
         page_refresh_interval = int(config.get(config_section, 'refresh interval'))
@@ -58,6 +65,10 @@ def load_config(config_file, config_section):
             response = requests.get(url)
             data = response.json()
             traefik_ip = data['ip']
+    else:
+        shutil.copyfile(dir_path + '/config.ini.sample', config_path)
+        print('Please enter your settings in the config.ini located in the DATA directory.')
+        raise SystemExit
     return logfile, traefik_ip, page_refresh_interval, ip_token
 
 config_file = 'config.ini'
@@ -73,7 +84,8 @@ log_file, traefik_ip, page_refresh_interval, ip_token = load_config(config_file,
 #                                                         #
 ###########################################################
 def get_ipdb(url):
-    target_path = os.path.join("", "IP2LOCATION-LITE-DB3.BIN.ZIP")
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    target_path = dir_path + '/data/IP2LOCATION-LITE-DB3.BIN.ZIP'
     r = requests.get(url, stream=True)
     handle = open(target_path, 'wb')
     for chunk in r.iter_content(chunk_size=512):
@@ -88,9 +100,9 @@ def get_ipdb(url):
         raise SystemExit
     else:
         with zipfile.ZipFile(target_path) as zf:
-            zf.extractall()
+            zf.extractall(dir_path + '/data')
         os.remove(target_path)
-    if path.exists('IP2LOCATION-LITE-DB3.BIN'):
+    if path.exists(dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'):
         print('IP DB file successfully extracted.')
     else:
         print('IP DB file extraction failed.')
@@ -105,12 +117,14 @@ def get_ipdb(url):
 #                                                                     #
 #######################################################################
 def process_log(log_file, traefik_ip, ip_token):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    target_path = dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'
     try:
-        ipdb = IP2Location.IP2Location(os.path.join("", "IP2LOCATION-LITE-DB3.BIN"))
+        ipdb = IP2Location.IP2Location(target_path)
     except:
         print('IP Location DB not found, fetching...')
         get_ipdb('https://www.ip2location.com/download/?token=' + ip_token + '&file=DB3LITEBIN')
-        ipdb = IP2Location.IP2Location(os.path.join("", "IP2LOCATION-LITE-DB3.BIN"))
+        ipdb = IP2Location.IP2Location(target_path)
     data = []
     i = 0
     with open(log_file) as f:
@@ -135,10 +149,12 @@ process_log(log_file, traefik_ip, ip_token)                                # Pop
 #                                                                #
 ##################################################################
 def update_log(log_file, traefik_ip):
-    update_con = sl.connect('connections.db')
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    target_path = dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'
+    update_con = sl.connect(db_path)
     tempdf=pd.read_sql_query('SELECT time from connections ORDER BY time', update_con) 
     last_time=tempdf.iloc[len(tempdf)-1]['time']
-    ipdb = IP2Location.IP2Location(os.path.join("", "IP2LOCATION-LITE-DB3.BIN"))
+    ipdb = IP2Location.IP2Location(target_path)
     data = []
     i = 0
     with open(log_file) as f:
@@ -299,7 +315,7 @@ app.layout = html.Div(children=[
               Input('interval-component', 'n_intervals'))
 def update_graph(n):
     update_log(log_file, traefik_ip)                       # grab latest log updates
-    update_con = sl.connect('connections.db')
+    update_con = sl.connect(db_path)
     update_df = pd.read_sql_query(query1, update_con)      # update the pandas dataframe
     fig = px.bar(
         update_df, 
@@ -331,7 +347,7 @@ def update_graph(n):
     Input('interval-component', 'n_intervals'))
 def update_table(n):
     update_log(log_file, traefik_ip)                       # grab latest log updates
-    update_con = sl.connect('connections.db')
+    update_con = sl.connect(db_path)
     update_df2 = pd.read_sql_query(query2, update_con)     # update the pandas dataframe
     update_con.close()
     return update_df2.to_dict('records')
@@ -339,7 +355,7 @@ def update_table(n):
 
 def main():
     app.run_server(debug=True)                             # Run the DASH web app
-
+#    print()
 
 if __name__ == '__main__':
     main()
