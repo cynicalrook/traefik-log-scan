@@ -16,14 +16,6 @@ import plotly.express as px
 import pandas as pd
 
 
-##################################################
-#                                                #
-#  page_refresh_interval specifies page refresh  #
-#  timing with new access log data               #
-#                                                #
-##################################################
-#page_refresh_interval = 10    # in minutes
-
 ####################################
 #                                  #
 #  Initialize database at startup  #
@@ -131,6 +123,7 @@ def process_log(log_file, traefik_ip, ip_token):
                 cur.execute(sql_work, (data[i]['ClientHost'], data[i]['RequestMethod'], data[i]['RequestPath'], data[i]['RequestProtocol'], data[i]['RequestScheme'], data[i]['DownstreamStatus'], data[i]['time'], details.city, details.region, details.country_short, details.country_long))
             i = i + 1
     con.commit()
+
 
 process_log(log_file, traefik_ip, ip_token)                                # Populate SQL database with log data
 
@@ -346,7 +339,7 @@ def update_table(n):
 
 def main():
     app.run_server(debug=True)                             # Run the DASH web app
-    print()
+
 
 if __name__ == '__main__':
     main()
