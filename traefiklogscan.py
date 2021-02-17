@@ -15,6 +15,7 @@ import dash_html_components as html
 import dash_table
 import plotly.express as px
 import pandas as pd
+from waitress import serve
 
 
 ####################################
@@ -127,7 +128,7 @@ def process_log(log_file, traefik_ip, ip_token):
         ipdb = IP2Location.IP2Location(target_path)
     data = []
     i = 0
-    with open(log_file) as f:
+    with open(log_file, 'r') as f:
         for line in f:
             data.append(json.loads(line))
         while i < len(data):
@@ -354,8 +355,8 @@ def update_table(n):
 
 
 def main():
-    app.run_server(debug=True)                             # Run the DASH web app
-#    print()
+#    app.run_server(debug=True)                             # Run the DASH web app
+    serve(app.server, host = '0.0.0.0', port=8050)
 
 if __name__ == '__main__':
     main()
