@@ -1,0 +1,5 @@
+requests
+IP2Location
+dash
+pandas
+waitress

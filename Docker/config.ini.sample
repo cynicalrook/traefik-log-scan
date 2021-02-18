@@ -1,0 +1,5 @@
+[dev]
+LOGFILE: logfile path and name
+HOSTIP: 'dynamic' (without quotes) or enter host IP here
+REFRESH INTERVAL: 10
+IP2LOCATION TOKEN: token here

@@ -2,6 +2,7 @@ import os
 from os import path
 import shutil
 import configparser
+import datetime
 import requests
 import json
 import zipfile
@@ -252,6 +253,8 @@ fig.update_layout(
 app.layout = html.Div(children=[
     html.H1(children='Traefik External Access Attempts'),
 
+    html.Div('Last refresh: ' + str(datetime.datetime.now().strftime('%c'))),
+
     dcc.Graph(
         id='location-graph',
         figure=fig
@@ -302,7 +305,8 @@ app.layout = html.Div(children=[
 
     dcc.Interval(                                # Defines page refresh interval
     id='interval-component',
-    interval=page_refresh_interval*(60*1000),    # in milliseconds, page_refresh_interval is desired minutes between refreshes
+#    interval=page_refresh_interval*(60*1000),    # in milliseconds, page_refresh_interval is desired minutes between refreshes
+    interval=5*1000,
     n_intervals=0
     )
 ])
@@ -355,8 +359,8 @@ def update_table(n):
 
 
 def main():
-#    app.run_server(debug=True)                             # Run the DASH web app
-    serve(app.server, host = '0.0.0.0', port=8050)
+    app.run_server(debug=True)                             # Run the DASH web app
+#    serve(app.server, host = '0.0.0.0', port=8050)
 
 if __name__ == '__main__':
     main()
