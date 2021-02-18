@@ -130,5 +130,9 @@ dmypy.json
 
 .vscode/
 config.ini
+connections.db
+IP2LOCATION*
+LICENSE_LITE.txt
+README_LITE.txt
 !config.ini.sample
-traefik.log
+
