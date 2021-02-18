@@ -129,15 +129,25 @@ def process_log(log_file, traefik_ip, ip_token):
         ipdb = IP2Location.IP2Location(target_path)
     data = []
     i = 0
-    with open(log_file, 'r') as f:
-        for line in f:
-            data.append(json.loads(line))
-        while i < len(data):
-            if data[i]['ClientHost'] != traefik_ip:
-                details = ipdb.get_all(data[i]['ClientHost'])
-                sql_work = "INSERT INTO connections (ip, requestmethod, requestpath, requestprotocol, requestscheme, statuscode, time, city, region, country_short, country_long) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                cur.execute(sql_work, (data[i]['ClientHost'], data[i]['RequestMethod'], data[i]['RequestPath'], data[i]['RequestProtocol'], data[i]['RequestScheme'], data[i]['DownstreamStatus'], data[i]['time'], details.city, details.region, details.country_short, details.country_long))
-            i = i + 1
+    try:
+        with open(log_file, 'r') as f:
+            for line in f:
+                try:
+                    data.append(json.loads(line))
+                except:
+                    print('Logfile is not in JSON format!')
+                    print('Please use "--log.format=json" option in your Traefik config.')
+                    print('https://doc.traefik.io/traefik/v2.0/observability/logs/')
+                    raise SystemExit
+            while i < len(data):
+                if data[i]['ClientHost'] != traefik_ip:
+                    details = ipdb.get_all(data[i]['ClientHost'])
+                    sql_work = "INSERT INTO connections (ip, requestmethod, requestpath, requestprotocol, requestscheme, statuscode, time, city, region, country_short, country_long) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    cur.execute(sql_work, (data[i]['ClientHost'], data[i]['RequestMethod'], data[i]['RequestPath'], data[i]['RequestProtocol'], data[i]['RequestScheme'], data[i]['DownstreamStatus'], data[i]['time'], details.city, details.region, details.country_short, details.country_long))
+                i = i + 1
+    except:
+        print('Error opening logfile.  Please verify logfile setting in config.ini.')
+        raise SystemExit
     con.commit()
 
 
@@ -204,9 +214,16 @@ def calc_column_height(dfy):
     c = 0
     high = 0
     while c < l:
-        if dfy.iloc[c]['Distinct IPs'] + dfy.iloc[c]['Connections'] > high:
-            high = dfy.iloc[c]['Distinct IPs'] + dfy.iloc[c]['Connections']
+        if dfy.iloc[c]['Distinct IPs'] > high:
+            high = dfy.iloc[c]['Distinct IPs']
+        if dfy.iloc[c]['Connections'] > high:
+            high = dfy.iloc[c]['Connections']
         c = c + 1
+#  Used when bar chart is in 'stack' mode vs. 'group' mode
+#    while c < l:
+#        if dfy.iloc[c]['Distinct IPs'] + dfy.iloc[c]['Connections'] > high:
+#            high = dfy.iloc[c]['Distinct IPs'] + dfy.iloc[c]['Connections']
+#        c = c + 1
     high = high + (10 - (high  % 10))
     return high
 
@@ -227,15 +244,21 @@ colors = {
 #  Bar chart definition  #
 #                        #
 ##########################
-fig = px.bar(
-    df, 
-    y=["Distinct IPs", "Connections"], 
-    x="Country", 
-    orientation='v', 
-    height=500, 
-    barmode="stack", 
-    range_y=[0,calc_column_height(df)], 
+try:
+    fig = px.bar(
+        df, 
+        y=["Distinct IPs", "Connections"], 
+        x="Country", 
+        orientation='v', 
+        height=500, 
+        barmode="stack", 
+        range_y=[0,calc_column_height(df)], 
 )
+except Exception as e:
+    print('Logfile contains no external access attempts to chart.')
+    print("Please verify at least one attempt is in the log before restarting the container.  You shouldn't have to wait long...")
+    raise SystemExit
+
 fig.update_layout(
 #    plot_bgcolor=colors['background'],  #future dark mode implementaton
 #    paper_bgcolor=colors['background'], #future dark mode implementaton
@@ -253,7 +276,11 @@ fig.update_layout(
 app.layout = html.Div(children=[
     html.H1(children='Traefik External Access Attempts'),
 
-    html.Div('Last refresh: ' + str(datetime.datetime.now().strftime('%c'))),
+#    html.Div('Last refresh: ' + str(datetime.datetime.now().strftime('%c'))),
+
+    html.A(
+        html.Button('Refresh Page'),href='/'
+        ),
 
     dcc.Graph(
         id='location-graph',
@@ -298,15 +325,23 @@ app.layout = html.Div(children=[
                 {
                     'if': {'row_index': 'odd'},
                     'backgroundColor': 'rgb(248, 248, 248)'
+                },
+                {
+                    'if': {
+                        'filter_query': '{HTTP Response} = 200',     # Highlight possible "OK" connections that shouldn't be!
+                        'column_id': 'HTTP Response'},
+                    'backgroundColor': 'tomato',
+                    'color': 'white'
                 }
+
             ]
         ),
     ),
 
     dcc.Interval(                                # Defines page refresh interval
     id='interval-component',
-#    interval=page_refresh_interval*(60*1000),    # in milliseconds, page_refresh_interval is desired minutes between refreshes
-    interval=5*1000,
+    interval=page_refresh_interval*(60*1000),    # in milliseconds, page_refresh_interval is desired minutes between refreshes
+#    interval=5*1000,
     n_intervals=0
     )
 ])
@@ -328,7 +363,7 @@ def update_graph(n):
         x="Country", 
         orientation='v', 
         height=500, 
-        barmode="stack", 
+        barmode="group", 
         range_y=[0,calc_column_height(update_df)]
     )
     update_con.close()
@@ -359,8 +394,8 @@ def update_table(n):
 
 
 def main():
-    app.run_server(debug=True)                             # Run the DASH web app
-#    serve(app.server, host = '0.0.0.0', port=8050)
+#    app.run_server(debug=True)                             # Run the DASH web app
+    serve(app.server, host = '0.0.0.0', port=8050)
 
 if __name__ == '__main__':
     main()
