@@ -251,9 +251,9 @@ try:
         x="Country", 
         orientation='v', 
         height=500, 
-        barmode="stack", 
+        barmode="group", 
         range_y=[0,calc_column_height(df)], 
-)
+    )
 except Exception as e:
     print('Logfile contains no external access attempts to chart.')
     print("Please verify at least one attempt is in the log before restarting the container.  You shouldn't have to wait long...")
@@ -384,7 +384,7 @@ def update_graph(n):
 #                                                                        #
 ##########################################################################
 @app.callback(Output('table', 'data'),
-    Input('interval-component', 'n_intervals'))
+              Input('interval-component', 'n_intervals'))
 def update_table(n):
     update_log(log_file, traefik_ip)                       # grab latest log updates
     update_con = sl.connect(db_path)
@@ -394,8 +394,9 @@ def update_table(n):
 
 
 def main():
-#    app.run_server(debug=True)                             # Run the DASH web app
-    serve(app.server, host = '0.0.0.0', port=8050)
+    app.run_server(debug=True)                             # Run the DASH web app
+#    serve(app.server, host = '0.0.0.0', port=8050)
+
 
 if __name__ == '__main__':
     main()
