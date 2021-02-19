@@ -36,9 +36,9 @@ Current download size is about 12MB.  Fully extracted on disk is about 47MB.
 This is intended to run in a Docker container, sample Docker Compose snippet:
 
 ```bash
-  traefik-log-scan:
+  traefik-access-log:
     container_name: traefik-access-log
-    image: traefik-access-log-scan
+    image: traefik-access-log-scanner
     ports:
       - 8050:8050
     volumes:
