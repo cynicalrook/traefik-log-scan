@@ -24,6 +24,7 @@ from waitress import serve
 #  Initialize database at startup  #
 #                                  #
 ####################################
+print(datetime.datetime.now().strftime('%c') + ' - Initilaizing connections database.')
 db_name = 'connections.db'
 db_path = os.path.dirname(os.path.realpath(__file__)) + '/data/' + db_name
 con = sl.connect(db_path)
@@ -57,7 +58,7 @@ def load_config(config_file, config_section):
         config.read(config_path)
         logfile = config.get(config_section, 'logfile')
         if logfile == 'logfile path and name':
-            print('Please enter your settings in the config.ini located in the DATA directory.')
+            print(datetime.datetime.now().strftime('%c') + ' - Please enter your settings in the config.ini located in the DATA directory.')
             raise SystemExit
         traefik_ip = config.get(config_section, 'hostip')
         ip_token = config.get(config_section, 'ip2location token')
@@ -69,8 +70,9 @@ def load_config(config_file, config_section):
             traefik_ip = data['ip']
     else:
         shutil.copyfile(dir_path + '/config.ini.sample', config_path)
-        print('Please enter your settings in the config.ini located in the DATA directory.')
+        print(datetime.datetime.now().strftime('%c') + ' - Please enter your settings in the config.ini located in the DATA directory.')
         raise SystemExit
+    print(datetime.datetime.now().strftime('%c') + ' - Configuration loaded.')
     return logfile, traefik_ip, page_refresh_interval, ip_token
 
 config_file = 'config.ini'
@@ -97,7 +99,7 @@ def get_ipdb(url):
     if zipfile.is_zipfile(target_path) == False:
         with open(target_path, 'r') as text_file:
             zip_error = text_file.read()
-        print('Received ' + zip_error + ' response from IP DB provider.  Please check IP2LOCATION TOKEN is set correctly in config.ini.')
+        print(datetime.datetime.now().strftime('%c') + ' - Received ' + zip_error + ' response from IP DB provider.  Please check IP2LOCATION TOKEN is set correctly in config.ini.')
         os.remove(target_path)
         raise SystemExit
     else:
@@ -105,9 +107,9 @@ def get_ipdb(url):
             zf.extractall(dir_path + '/data')
         os.remove(target_path)
     if path.exists(dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'):
-        print('IP DB file successfully extracted.')
+        print(datetime.datetime.now().strftime('%c') + ' - IP DB file successfully extracted.')
     else:
-        print('IP DB file extraction failed.')
+        print(datetime.datetime.now().strftime('%c') + ' - IP DB file extraction failed.')
         raise SystemExit
     return
 
@@ -123,8 +125,9 @@ def process_log(log_file, traefik_ip, ip_token):
     target_path = dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'
     try:
         ipdb = IP2Location.IP2Location(target_path)
+        print(datetime.datetime.now().strftime('%c') + ' - Found IP2Location database.')
     except:
-        print('IP Location DB not found, fetching...')
+        print(datetime.datetime.now().strftime('%c') + ' - IP Location DB not found, fetching...')
         get_ipdb('https://www.ip2location.com/download/?token=' + ip_token + '&file=DB3LITEBIN')
         ipdb = IP2Location.IP2Location(target_path)
     data = []
@@ -135,9 +138,9 @@ def process_log(log_file, traefik_ip, ip_token):
                 try:
                     data.append(json.loads(line))
                 except:
-                    print('Logfile is not in JSON format!')
-                    print('Please use "--log.format=json" option in your Traefik config.')
-                    print('https://doc.traefik.io/traefik/v2.0/observability/logs/')
+                    print(datetime.datetime.now().strftime('%c') + ' - Logfile is not in JSON format!')
+                    print(datetime.datetime.now().strftime('%c') + ' - Please use "--log.format=json" option in your Traefik config.')
+                    print(datetime.datetime.now().strftime('%c') + ' - https://doc.traefik.io/traefik/v2.0/observability/logs/')
                     raise SystemExit
             while i < len(data):
                 if data[i]['ClientHost'] != traefik_ip:
@@ -146,7 +149,7 @@ def process_log(log_file, traefik_ip, ip_token):
                     cur.execute(sql_work, (data[i]['ClientHost'], data[i]['RequestMethod'], data[i]['RequestPath'], data[i]['RequestProtocol'], data[i]['RequestScheme'], data[i]['DownstreamStatus'], data[i]['time'], details.city, details.region, details.country_short, details.country_long))
                 i = i + 1
     except:
-        print('Error opening logfile.  Please verify logfile setting in config.ini.')
+        print(datetime.datetime.now() + 'Error opening logfile.  Please verify logfile setting in config.ini.')
         raise SystemExit
     con.commit()
 
@@ -255,8 +258,8 @@ try:
         range_y=[0,calc_column_height(df)], 
     )
 except Exception as e:
-    print('Logfile contains no external access attempts to chart.')
-    print("Please verify at least one attempt is in the log before restarting the container.  You shouldn't have to wait long...")
+    print(datetime.datetime.now().strftime('%c') + ' - Logfile contains no external access attempts to chart.')
+    print(datetime.datetime.now().strftime('%c') + " - Please verify at least one attempt is in the log before restarting the container.  You shouldn't have to wait long...")
     raise SystemExit
 
 fig.update_layout(
@@ -315,6 +318,8 @@ app.layout = html.Div(children=[
                         'column_id': 'Country',
                     },
                     'textAlign': 'center',
+                    'whitespace': 'normal',
+                    'height': 'auto', 
                 },
                 {
                     'if': {
@@ -346,17 +351,19 @@ app.layout = html.Div(children=[
     )
 ])
 
-#####################################################################
-#                                                                   #
-#  Updates bar chart with refreshed data at interval defined above  #
-#                                                                   #
-#####################################################################
+####################################################################################
+#                                                                                  #
+#  Updates bar chart and data table with refreshed data at interval defined above  #
+#                                                                                  #
+####################################################################################
 @app.callback(Output('location-graph', 'figure'),
+              Output('table', 'data'),
               Input('interval-component', 'n_intervals'))
 def update_graph(n):
     update_log(log_file, traefik_ip)                       # grab latest log updates
     update_con = sl.connect(db_path)
     update_df = pd.read_sql_query(query1, update_con)      # update the pandas dataframe
+    update_df2 = pd.read_sql_query(query2, update_con)     # update the pandas dataframe
     fig = px.bar(
         update_df, 
         y=["Distinct IPs", "Connections"], 
@@ -376,26 +383,13 @@ def update_graph(n):
         yaxis=dict(title='Distinct IPs / Connection Attempts'),
         legend_title_text=''
     )
-    return fig
-
-##########################################################################
-#                                                                        #
-#  Updates log data table with refreshed data at interval defined above  #
-#                                                                        #
-##########################################################################
-@app.callback(Output('table', 'data'),
-              Input('interval-component', 'n_intervals'))
-def update_table(n):
-    update_log(log_file, traefik_ip)                       # grab latest log updates
-    update_con = sl.connect(db_path)
-    update_df2 = pd.read_sql_query(query2, update_con)     # update the pandas dataframe
-    update_con.close()
-    return update_df2.to_dict('records')
+    return fig, update_df2.to_dict('records')
 
 
 def main():
-    app.run_server(debug=True)                             # Run the DASH web app
-#    serve(app.server, host = '0.0.0.0', port=8050)
+#    app.run_server(debug=True)                             # Run the DASH web app
+    print(datetime.datetime.now().strftime('%c') + ' - Starting Web service.')
+    serve(app.server, host = '0.0.0.0', port=8050)
 
 
 if __name__ == '__main__':

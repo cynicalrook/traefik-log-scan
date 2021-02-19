@@ -134,5 +134,6 @@ connections.db
 IP2LOCATION*
 LICENSE_LITE.txt
 README_LITE.txt
+*.png
 !config.ini.sample
 
