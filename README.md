@@ -75,7 +75,9 @@ the web page.
 IP2LOCATION TOKEN: Get from the Account > File Download page of the IP2LOCATION Lite website after
 you create your free account.
 
-Once running, access the web page at <http://your_docker_IP:8050>
+Once running, access the web page at <http://your_docker_IP:8050>  Note that you must have at least one
+external connection attempt in the Traefik Access log or the process will fail and error out.  I know I should fix this,
+but haven't gotten around to it yet...
 
 ## Contributing
 
