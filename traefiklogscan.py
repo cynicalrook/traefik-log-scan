@@ -388,7 +388,7 @@ def update_graph(n):
 
 def main():
 #    app.run_server(debug=True)                             # Run the DASH web app
-#    print(datetime.datetime.now().strftime('%c') + ' - Starting Web service.')
+    print(datetime.datetime.now().strftime('%c') + ' - Starting Web service.')
     serve(app.server, host = '0.0.0.0', port=8050)
 
 
