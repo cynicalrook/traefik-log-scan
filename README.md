@@ -37,8 +37,8 @@ This is intended to run in a Docker container, sample Docker Compose snippet:
 
 ```bash
   traefik-log-scan:
-    container_name: traefik-access
-    image: traefik-log-scan:latest
+    container_name: traefik-access-log
+    image: traefik-access-log-scan
     ports:
       - 8050:8050
     volumes:
