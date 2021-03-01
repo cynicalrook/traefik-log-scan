@@ -122,7 +122,14 @@ def get_ipdb(url):
 #######################################################################
 def process_log(log_file, traefik_ip, ip_token):
     dir_path = os.path.dirname(os.path.realpath(__file__))
+    exclude_ip_path = dir_path + '/data/exclude-ips.txt'
     target_path = dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'
+    ex_ip_set = {}
+    try:
+        ex_ip_set = set(line.strip() for line in open(exclude_ip_path))
+        print(datetime.datetime.now().strftime('%c') + ' - Exclude IP list loaded.')
+    except:
+        print(datetime.datetime.now().strftime('%c') + ' - Exclude IP list not found, skipping')
     try:
         ipdb = IP2Location.IP2Location(target_path)
         print(datetime.datetime.now().strftime('%c') + ' - Found IP2Location database.')
@@ -143,7 +150,7 @@ def process_log(log_file, traefik_ip, ip_token):
                     print(datetime.datetime.now().strftime('%c') + ' - https://doc.traefik.io/traefik/v2.0/observability/logs/')
                     raise SystemExit
             while i < len(data):
-                if data[i]['ClientHost'] != traefik_ip:
+                if data[i]['ClientHost'] != traefik_ip and data[i]['ClientHost'] not in ex_ip_set:
                     details = ipdb.get_all(data[i]['ClientHost'])
                     sql_work = "INSERT INTO connections (ip, requestmethod, requestpath, requestprotocol, requestscheme, statuscode, time, city, region, country_short, country_long) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     cur.execute(sql_work, (data[i]['ClientHost'], data[i]['RequestMethod'], data[i]['RequestPath'], data[i]['RequestProtocol'], data[i]['RequestScheme'], data[i]['DownstreamStatus'], data[i]['time'], details.city, details.region, details.country_short, details.country_long))
@@ -166,17 +173,23 @@ process_log(log_file, traefik_ip, ip_token)                                # Pop
 def update_log(log_file, traefik_ip):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     target_path = dir_path + '/data/IP2LOCATION-LITE-DB3.BIN'
+    exclude_ip_path = dir_path + '/data/exclude-ips.txt'
+    ex_ip_set = {}
     update_con = sl.connect(db_path)
     tempdf=pd.read_sql_query('SELECT time from connections ORDER BY time', update_con) 
     last_time=tempdf.iloc[len(tempdf)-1]['time']
-    ipdb = IP2Location.IP2Location(target_path)
+    ipdb = IP2Location.IP2Location(target_path) 
+    try:
+        ex_ip_set = set(line.strip() for line in open(exclude_ip_path))
+    except:
+        pass
     data = []
     i = 0
     with open(log_file) as f:
         for line in f:
             data.append(json.loads(line))
         while i < len(data):
-            if data[i]['ClientHost'] != traefik_ip and data[i]['time'] > last_time:
+            if data[i]['ClientHost'] != traefik_ip and data[i]['ClientHost'] not in ex_ip_set and data[i]['time'] > last_time:
                 details = ipdb.get_all(data[i]['ClientHost'])
                 sql_work = "INSERT INTO connections (ip, requestmethod, requestpath, requestprotocol, requestscheme, statuscode, time, city, region, country_short, country_long) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 update_con.execute(sql_work, (data[i]['ClientHost'], data[i]['RequestMethod'], data[i]['RequestPath'], data[i]['RequestProtocol'], data[i]['RequestScheme'], data[i]['DownstreamStatus'], data[i]['time'], details.city, details.region, details.country_short, details.country_long))
@@ -362,8 +375,8 @@ app.layout = html.Div(children=[
 def update_graph(n):
     update_log(log_file, traefik_ip)                       # grab latest log updates
     update_con = sl.connect(db_path)
-    update_df = pd.read_sql_query(query1, update_con)      # update the pandas dataframe
-    update_df2 = pd.read_sql_query(query2, update_con)     # update the pandas dataframe
+    update_df = pd.read_sql_query(query1, update_con)      # update the bar chart pandas dataframe
+    update_df2 = pd.read_sql_query(query2, update_con)     # update the data table pandas dataframe
     fig = px.bar(
         update_df, 
         y=["Distinct IPs", "Connections"], 
@@ -387,8 +400,8 @@ def update_graph(n):
 
 
 def main():
-#    app.run_server(debug=True)                             # Run the DASH web app
     print(datetime.datetime.now().strftime('%c') + ' - Starting Web service.')
+#    app.run_server(debug=True)                             # Run the DASH web app
     serve(app.server, host = '0.0.0.0', port=8050)
 
 

@@ -75,6 +75,15 @@ the web page.
 IP2LOCATION TOKEN: Get from the Account > File Download page of the IP2LOCATION Lite website after
 you create your free account.
 
+If you wish to exclude known good IPs from the reporting, enter them one per line in 'exclude-ips.txt'.  A sample file is in the DATA
+directory - drop the '.sample' and add your IPs.
+
+```bash
+1.2.3.4
+2.3.4.5
+3.4.5.6
+```
+
 Once running, access the web page at <http://your_docker_IP:8050>  Note that you must have at least one
 external connection attempt in the Traefik Access log or the process will fail and error out.  I know I should fix this,
 but haven't gotten around to it yet...
@@ -84,8 +93,6 @@ but haven't gotten around to it yet...
 This is just a hobby program, but if you want to enhance or modify, pull requests are welcome and I'd love to see what you have in mind!
 
 Source code located here: <https://github.com/cynicalrook/traefik-log-scan>
-
-For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
